@@ -108,10 +108,11 @@ def clone_and_test_package(package: "PluginPackage") -> bool:
 
 
 def split_packages(
-    packages_to_test: list["PluginPackage"], ci_node_total: int, ci_node_index: int
-) -> list["PluginPackage"]:
+    packages_to_test: list[PluginPackage], ci_node_total: int, ci_node_index: int
+) -> list[PluginPackage]:
     """
-    Splits a list of packages into sublists based on CI node configuration.
+    Splits a list of packages into sublists based on CI node configuration, ensuring
+    even distribution and no overlap between nodes.
 
     Args:
         packages_to_test: A list of PluginPackage objects to split.
@@ -121,13 +122,22 @@ def split_packages(
     Returns:
         A list of PluginPackage objects assigned to the current CI node.
     """
-    packages_per_node = (len(packages_to_test) + ci_node_total - 1) // ci_node_total
-    start_index = (ci_node_index - 1) * packages_per_node
+    if ci_node_total <= 0 or ci_node_index <= 0 or ci_node_index > ci_node_total:
+        raise ValueError(
+            "Invalid CI node configuration: ci_node_total and ci_node_index must be positive, and ci_node_index must be less than or equal to ci_node_total."
+        )
 
-    if ci_node_index == ci_node_total:
-        return packages_to_test[start_index:]
+    num_packages = len(packages_to_test)
+    packages_per_node = num_packages // ci_node_total
+    remainder = num_packages % ci_node_total
 
-    end_index = start_index + packages_per_node
+    start_index = (ci_node_index - 1) * packages_per_node + min(
+        ci_node_index - 1, remainder
+    )
+    end_index = (
+        start_index + packages_per_node + (1 if ci_node_index <= remainder else 0)
+    )
+
     return packages_to_test[start_index:end_index]
 
 
