@@ -5,6 +5,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import TypedDict
 
+from nomad_plugin_tests.process import create_requirements_file
+
 logger = logging.getLogger(__name__)
 
 
@@ -79,6 +81,12 @@ def _parse_git_requirements() -> dict[str, LockGitInfo]:
     """
     requirements_file = os.path.join(os.getcwd(), "requirements.txt")
     result: dict[str, LockGitInfo] = {}
+    if not os.path.isfile(requirements_file):
+        if not create_requirements_file(requirements_file):
+            logger.error(
+                "Failed to create requirements file; unable to parse git dependencies."
+            )
+            return result
     git_pattern = re.compile(
         r"(?P<name>[\w\-]+) @ git\+(?P<url>[^@]+)@(?P<hash>[a-f0-9]+)"
     )
