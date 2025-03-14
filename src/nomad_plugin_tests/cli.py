@@ -5,9 +5,15 @@ import multiprocessing
 import os
 import tempfile
 
-from nomad_plugin_tests.config import TESTS_TO_RUN
+from nomad_plugin_tests import git
+from nomad_plugin_tests.errors import PackageTestError
+from nomad_plugin_tests.package_tester import (
+    create_virtual_environment,
+    install_distro_dependencies,
+    install_package_dependencies,
+    run_pytest,
+)
 from nomad_plugin_tests.parsing import get_plugin_packages, PluginPackage
-from nomad_plugin_tests.process import run_command
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -15,269 +21,89 @@ logging.basicConfig(
 )
 
 
-def is_valid_github_url(url: str | None) -> bool:
-    """
-    Checks if a given URL is a valid GitHub URL. Specifically, validates that
-    it's not None and that it contains "github.com".
-    """
-    return url is not None and "github.com" in url
-
-
-def get_git_url(package: "PluginPackage") -> str | None:
-    """
-    Prioritizes and constructs a GitHub URL from various package sources,
-    ensuring it ends with ".git" for compatibility.
+def setup_logger(
+    package_name: str, log_dir: str
+) -> tuple[logging.Logger, logging.FileHandler]:
+    """Sets up a logger for a given package, directing output to a file.
 
     Args:
-        package: A dictionary (or similar structure) containing potential GitHub URL sources
-                 (homepage, repository, github_url).
+        package_name: The name of the package.
+        log_dir: The directory where the log file should be stored.
 
     Returns:
-        A string containing the validated GitHub URL if found; otherwise, None.
-        Returns None if all inputs are None or invalid.
+        A tuple containing the logger and the log handler.
     """
-
-    github_url: str | None = None
-
-    # Prioritize github_url (most direct indicator)
-    if package.github_url:
-        github_url = package.github_url
-        if not github_url.endswith(".git"):
-            github_url = f"{github_url}.git"
-        if not is_valid_github_url(github_url):
-            github_url = None
-
-    # Then repository
-    if (
-        github_url is None
-        and package.repository
-        and is_valid_github_url(package.repository)
-    ):
-        github_url = package.repository
-
-    # Finally homepage
-    if (
-        github_url is None
-        and package.homepage
-        and is_valid_github_url(package.homepage)
-    ):
-        github_url = package.homepage
-
-    return github_url
-
-
-def checkout_tag(repo_path: str, tag_name: str, package_logger) -> bool:
-    """Fetches a specific tag from the remote repository."""
-    checkout_command = [
-        "git",
-        "checkout",
-        f"{tag_name}",
-        "-b",
-        f"{tag_name}-branch",
-    ]
-    if run_command(checkout_command, cwd=repo_path, package_logger=package_logger):
-        package_logger.debug(f"Successfully fetched tag '{tag_name}'.")
-        return True
-    else:
-        package_logger.error(f"Failed to fetch tag '{tag_name}'.")
-        return False
-
-
-def clone_and_checkout(package: "PluginPackage", temp_dir: str, package_logger) -> bool:
-    """
-    Clones a Git repository, fetches all branches, and checks out a specific commit hash or tag based on package configuration.
-    Also initializes and updates Git submodules.
-
-    Args:
-        package: The PluginPackage object containing repository information.
-        temp_dir: The directory to clone the repository into.
-
-    Returns:
-        True if the entire process was successful, False otherwise.
-    """
-    # 1. Clone the repository
-    clone_command = ["git", "clone", "--depth", "1", package.github_url, temp_dir]
-    if not run_command(clone_command, cwd=None, package_logger=package_logger):
-        package_logger.error(f"Failed to clone repository for '{package.name}'.")
-        return False
-
-    # 2. Checkout commit hash or tag
-    checkout_successful = False
-    if package.commit_hash:
-        fetch_command = ["git", "fetch", "origin", package.commit_hash]
-        checkout_command = ["git", "checkout", package.commit_hash]
-        if run_command(
-            fetch_command, cwd=temp_dir, package_logger=package_logger
-        ) and run_command(
-            checkout_command, cwd=temp_dir, package_logger=package_logger
-        ):
-            package_logger.info(
-                f"Checked out commit '{package.commit_hash}' successfully for '{package.name}'."
-            )
-            checkout_successful = True
-        else:
-            package_logger.error(
-                f"Failed to check out commit '{package.commit_hash}' for '{package.name}'."
-            )
-
-    if (
-        not package.commit_hash or not checkout_successful
-    ):  # Handle tag checkout only if commit hash checkout failed (or if there was no commit hash)
-        version_tag = (
-            package.version
-            if package.version is not None and ".dev" not in package.version
-            else None
-        )
-
-        if version_tag:
-            # Try with "v" prefix first
-            tag_name_v = f"v{version_tag}"
-            tag_name_no_v = version_tag
-            fetch_command = ["git", "fetch", "origin", "--tags"]
-            if run_command(fetch_command, cwd=temp_dir, package_logger=package_logger):
-                if tag_name_v != "v0.0.0" and checkout_tag(
-                    temp_dir, tag_name_v, package_logger
-                ):
-                    checkout_successful = True
-                elif tag_name_no_v != "0.0.0" and checkout_tag(
-                    temp_dir, tag_name_no_v, package_logger
-                ):
-                    checkout_successful = True
-        elif package.version and ".dev" in package.version:
-            package_logger.warning(
-                f"Skipping checkout for dev version '{package.version}' for '{package.name}'."
-            )
-            checkout_successful = True  # Consider this successful to proceed, though no actual checkout happened
-
-        else:
-            package_logger.warning(
-                f"No commit_hash or valid tag found for '{package.name}'. Skipping checkout."
-            )
-            checkout_successful = True  # Proceed, but no checkout happened.
-    return checkout_successful
-
-
-# --- Main CLI Logic ---
-def clone_and_test_package(package: "PluginPackage"):
-    package_name = package.name
-    log_dir = f"logs/{package_name}"
     os.makedirs(log_dir, exist_ok=True)
     log_file_path = os.path.join(log_dir, "test_output.log")
 
-    # --- Logger Redirection ---
-    # Create a package-specific logger
-    package_logger = logging.getLogger(package_name)
-    package_logger.setLevel(logging.INFO)
-
     logging.getLogger().handlers.clear()
 
-    # Create a handler to write log messages
-    log_handler = logging.FileHandler(log_file_path)
+    logger = logging.getLogger(package_name)
+    logger.setLevel(logging.INFO)
+
+    log_handler = logging.FileHandler(log_file_path, encoding="utf-8")
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
     log_handler.setFormatter(formatter)
-    package_logger.addHandler(log_handler)
+    logger.addHandler(log_handler)
+
+    return logger, log_handler
+
+
+def clone_and_test_package(package: "PluginPackage") -> bool:
+    package_name = package.name
+    log_dir = f"logs/{package_name}"
+    package_logger, log_handler = setup_logger(package_name, log_dir)
+    if not package.github_url:
+        package_logger.warning(
+            f"No GitHub URL provided for package '{package_name}', skipping."
+        )
+        return False
 
     try:
-        package_logger.info(f"Package info: {package}")
-        if package.github_url is None:
-            package_logger.warning(
-                f"No GitHub URL provided for package '{package.name}', skipping."
-            )
-            return
-
+        package_logger.info(f"Starting test for package: {package}")
         with tempfile.TemporaryDirectory() as temp_dir:
-            if not clone_and_checkout(package, temp_dir, package_logger):
-                return
+            try:
+                if not git.clone_and_checkout(package, temp_dir, package_logger):
+                    raise PackageTestError(
+                        f"Failed to clone and checkout '{package_name}'"
+                    )
 
-            package_logger.info(f"Installing dev dependencies for '{package.name}'...")
-
-            venv = os.path.join(temp_dir, "venv")
-            venv_command = [
-                "uv",
-                "venv",
-                "-p",
-                "3.12",
-                "--seed",
-                venv,
-            ]
-            if not run_command(venv_command, package_logger=package_logger):
-                package_logger.error(f"Failed to create venv for '{package.name}'")
-                return
-
-            package_logger.info(f"Successfully created venv for '{package.name}'.")
-
-            python_path = os.path.join(venv, "bin", "python")
-
-            requirements_file = os.path.join(os.getcwd(), "requirements.txt")
-            install_command = [
-                "uv",
-                "pip",
-                "install",
-                "-r",
-                requirements_file,
-                "--reinstall",
-                "--quiet",
-                "-p",
-                python_path,
-            ]
-            if not run_command(
-                install_command, cwd=os.getcwd(), package_logger=package_logger
-            ):
-                package_logger.error(
-                    f"Failed to install distro dependencies for '{package.name}'"
+                venv = os.path.join(temp_dir, "venv")
+                create_virtual_environment(
+                    venv_path=venv, package_logger=package_logger
                 )
-                return
+                python_path = os.path.join(venv, "bin", "python")
 
-            package_logger.info(
-                f"Successfully installed distro dependencies for '{package.name}'."
-            )
-
-            install_command = [
-                "uv",
-                "pip",
-                "install",
-                "-r",
-                f"{temp_dir}/pyproject.toml",
-                "--all-extras",
-                "-p",
-                python_path,
-                "-c",
-                requirements_file,
-            ]
-            if not run_command(
-                install_command, cwd=temp_dir, package_logger=package_logger
-            ):
-                package_logger.error(
-                    f"Failed to install dev dependencies for '{package.name}'"
+                install_distro_dependencies(
+                    python_path=python_path, package_logger=package_logger
                 )
-                return
+                install_package_dependencies(
+                    temp_dir=temp_dir,
+                    python_path=python_path,
+                    package_logger=package_logger,
+                )
 
-            package_logger.info(
-                f"Successfully installed dev dependencies for '{package.name}'."
-            )
-
-            package_logger.info(f"Running pytest for '{package.name}'")
-
-            pytest_command = [python_path, "-m", "pytest", "-p", "no:warnings"]
-
-            if test_folder := TESTS_TO_RUN.get(package.name):
-                pytest_command.append(os.path.join(temp_dir, test_folder))
-            else:
-                pytest_command.append(temp_dir)
-
-            if not run_command(
-                pytest_command, cwd=temp_dir, package_logger=package_logger
-            ):
-                package_logger.error(f"Tests failed for '{package.name}'")
-            else:
-                package_logger.info(f"Tests passed for '{package.name}'.")
+                run_pytest(
+                    temp_dir=temp_dir,
+                    package=package,
+                    python_path=python_path,
+                    package_logger=package_logger,
+                )
+                package_logger.info(f"Tests passed for '{package_name}'.")
                 return True
 
-            return False
+            except PackageTestError as e:
+                package_logger.error(f"Package test failed for '{package_name}': {e}")
+                return False
+            except Exception as e:
+                package_logger.exception(
+                    f"An unexpected error occurred during testing '{package_name}': {e}"
+                )
+                return False
     finally:
-        package_logger.removeHandler(log_handler)  # Prevent memory leaks
+        package_logger.removeHandler(log_handler)
         log_handler.close()
 
 

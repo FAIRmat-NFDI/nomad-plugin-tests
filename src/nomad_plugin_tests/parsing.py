@@ -5,6 +5,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TypedDict
 
+from nomad_plugin_tests.git import get_git_url
 from nomad_plugin_tests.process import create_requirements_file
 
 logger = logging.getLogger(__name__)
@@ -147,7 +148,6 @@ def get_plugin_packages() -> dict[str, "PluginPackage"]:
     """
     from importlib.metadata import entry_points
     from nomad_plugin_tests.parsing import PluginPackage
-    from nomad_plugin_tests.cli import get_git_url
 
     plugin_packages: dict[str, PluginPackage] = {}
 
