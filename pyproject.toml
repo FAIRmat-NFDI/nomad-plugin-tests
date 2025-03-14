@@ -1,0 +1,15 @@
+[project]
+name = "nomad-plugin-tests"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [{ name = "Ahmed Ilyas", email = "ahmed.n.ilyas@gmail.com" }]
+requires-python = ">=3.10"
+dependencies = ["click"]
+
+[project.scripts]
+nomad-plugin-tests = "nomad_plugin_tests.cli:test_plugins"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
