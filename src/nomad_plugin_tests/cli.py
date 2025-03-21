@@ -209,6 +209,7 @@ def test_plugins(plugins_to_skip: str, ci_node_total: int, ci_node_index: int) -
         package
         for name, package in plugin_packages.items()
         if name not in plugins_to_skip_list
+        and package.package_name not in plugins_to_skip_list
     ]
 
     packages_to_test = split_packages(packages_to_test, ci_node_total, ci_node_index)
