@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PluginPackage:
     name: str
+    package_name: str | None = None
     description: str | None = None
     version: str | None = None
     homepage: str | None = None
@@ -69,7 +70,6 @@ def _parse_git_packages(
                 git_packages[package_name] = lock_data[package_name]
             else:
                 git_packages[package_name] = {"commit": commit_hash, "url": url}
-
     return git_packages
 
 
@@ -158,7 +158,7 @@ def get_plugin_packages() -> dict[str, "PluginPackage"]:
     for entry_point in plugin_entry_points:
         try:
             key = entry_point.value
-            package_name = entry_point.value.split(".", 1)[0].split(":", 1)[0]
+            module_name = entry_point.value.split(".", 1)[0].split(":", 1)[0]
             package_metadata = entry_point.dist.metadata
 
             url_list: list[str] = package_metadata.get_all("Project-URL") or []
@@ -170,9 +170,10 @@ def get_plugin_packages() -> dict[str, "PluginPackage"]:
                 except ValueError:
                     print(f"Warning: Invalid Project-URL format: {url}")
 
-            if package_name not in plugin_packages:
+            if module_name not in plugin_packages:
                 plugin_package = PluginPackage(
-                    name=package_name,
+                    name=module_name,
+                    package_name=package_metadata.get("name"),
                     description=package_metadata.get("Summary"),
                     version=entry_point.dist.version,
                     homepage=url_dict.get("homepage"),
@@ -181,17 +182,17 @@ def get_plugin_packages() -> dict[str, "PluginPackage"]:
                     entry_points=[key],
                 )
 
-                git_package_name = plugin_package.name.replace("_", "-")
-                git_info = git_packages.get(git_package_name)
-
-                if git_info:
+                git_package_name = plugin_package.package_name
+                if git_package_name and (
+                    git_info := git_packages.get(git_package_name)
+                ):
                     plugin_package.github_url = git_info["url"]
                     plugin_package.commit_hash = git_info["commit"]
                 else:
                     plugin_package.github_url = get_git_url(plugin_package)
                     plugin_package.commit_hash = None
 
-                plugin_packages[package_name] = plugin_package
+                plugin_packages[module_name] = plugin_package
         except Exception as e:
             print(f"Error processing plugin {entry_point.name}: {e}")
 
