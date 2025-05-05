@@ -30,6 +30,33 @@ class LockGitInfo(TypedDict):
     url: str
 
 
+def _extract_dependency_name(dependency_string: str) -> str:
+    """Extracts the core dependency name from a dependency string,
+    removing version specifiers, comments, and git repository references.
+
+    Args:
+        dependency_string: A string representing a dependency, potentially
+                        including version specifiers, comments, or git
+                        repository references.
+
+    Returns:
+        The extracted dependency name, stripped of any extra information.
+    """
+    # Remove comments and markers (anything after # and ;)
+    dependency_string = dependency_string.split("#")[0].strip().split(";")[0].strip()
+
+    # Remove version specifiers (e.g., >=1.2.3, ==2.0) using regex
+    dependency_string = re.sub(r"[<>=~!].*", "", dependency_string).strip()
+
+    # Remove git repository references (e.g., @ git+https://...) using regex
+    dependency_string = re.sub(r"\s*@\s*git\+.*", "", dependency_string).strip()
+
+    # Remove extras markers eg. "requests; extra == 'security'"
+    dependency_string = re.sub(r"\s*;\s*extra.*", "", dependency_string).strip()
+
+    return dependency_string
+
+
 def _parse_git_packages(
     toml_data: dict, lock_data: dict[str, LockGitInfo]
 ) -> dict[str, LockGitInfo]:
@@ -59,9 +86,9 @@ def _parse_git_packages(
         raise KeyError(f"Missing key in toml_data: {e}") from e
 
     for line in plugins:
+        package_name = _extract_dependency_name(line)
         match = re.match(r"(\S+) @ git\+(\S+?)@(\S+)", line)
         if match:
-            package_name = match.group(1).strip()
             url = match.group(2)
             commit_hash = match.group(3)
 
@@ -70,6 +97,9 @@ def _parse_git_packages(
                 git_packages[package_name] = lock_data[package_name]
             else:
                 git_packages[package_name] = {"commit": commit_hash, "url": url}
+        else:
+            if package_name in lock_data:
+                git_packages[package_name] = lock_data[package_name]
     return git_packages
 
 
