@@ -221,6 +221,9 @@ def test_plugins(plugins_to_skip: str, ci_node_total: int, ci_node_index: int) -
 
     output_package_logs(packages_to_test)
 
+    if plugins_to_skip_list:
+        print(f"Tests skipped for packages: {', '.join(plugins_to_skip_list)}")
+
     if passed_packages:
         print(f"Tests passed for packages: {', '.join(passed_packages)}")
     else:
