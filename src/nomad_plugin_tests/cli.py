@@ -1,9 +1,10 @@
-import click
-import sys
 import logging
 import multiprocessing
 import os
+import sys
 import tempfile
+
+import click
 
 from nomad_plugin_tests import git
 from nomad_plugin_tests.errors import PackageTestError
@@ -13,7 +14,7 @@ from nomad_plugin_tests.package_tester import (
     install_package_dependencies,
     run_pytest,
 )
-from nomad_plugin_tests.parsing import get_plugin_packages, PluginPackage
+from nomad_plugin_tests.parsing import PluginPackage, get_plugin_packages
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(

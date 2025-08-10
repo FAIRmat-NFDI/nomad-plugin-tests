@@ -1,9 +1,10 @@
-import tomllib
-import re
-import os
 import logging
+import os
+import re
 from dataclasses import dataclass, field
 from typing import TypedDict
+
+import tomllib
 
 from nomad_plugin_tests.git import get_git_url
 from nomad_plugin_tests.process import create_requirements_file
@@ -177,6 +178,7 @@ def get_plugin_packages() -> dict[str, "PluginPackage"]:
     Retrieves information about installed plugin packages, combining data from pyproject.toml, lock data, and package metadata.
     """
     from importlib.metadata import entry_points
+
     from nomad_plugin_tests.parsing import PluginPackage
 
     plugin_packages: dict[str, PluginPackage] = {}

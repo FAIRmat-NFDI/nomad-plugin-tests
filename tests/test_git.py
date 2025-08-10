@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+
 from nomad_plugin_tests.git import checkout_tag, clone_and_checkout
 from nomad_plugin_tests.parsing import PluginPackage
 
