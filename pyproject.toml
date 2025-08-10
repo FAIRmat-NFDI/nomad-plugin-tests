@@ -1,7 +1,7 @@
 [project]
 name = "nomad-plugin-tests"
 version = "0.2.2"
-description = "Add your description here"
+description = "Run NOMAD plugin tests"
 readme = "README.md"
 authors = [{ name = "Ahmed Ilyas", email = "ahmed.n.ilyas@gmail.com" }]
 requires-python = ">=3.10"
