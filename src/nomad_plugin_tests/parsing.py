@@ -4,7 +4,10 @@ import re
 from dataclasses import dataclass, field
 from typing import TypedDict
 
-import tomllib
+try:
+    import tomllib  # Python 3.11+
+except ModuleNotFoundError:  # Python <= 3.10
+    import tomli as tomllib
 
 from nomad_plugin_tests.git import get_git_url
 from nomad_plugin_tests.process import create_requirements_file
