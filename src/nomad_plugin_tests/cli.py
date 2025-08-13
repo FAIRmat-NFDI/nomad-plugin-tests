@@ -15,6 +15,7 @@ from nomad_plugin_tests.package_tester import (
     run_pytest,
 )
 from nomad_plugin_tests.parsing import PluginPackage, get_plugin_packages
+from nomad_plugin_tests.config import config
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -197,10 +198,22 @@ def output_package_logs(packages_to_test: list["PluginPackage"]):
     default=1,
     help="Index of the current CI node (1-based).",
 )
-def test_plugins(plugins_to_skip: str, ci_node_total: int, ci_node_index: int) -> None:
+@click.option(
+    "-p",
+    "--python-version",
+    envvar="PYTHON_VERSION",
+    default="3.12",
+)
+def test_plugins(
+    plugins_to_skip: str,
+    ci_node_total: int,
+    ci_node_index: int,
+    python_version: str,
+) -> None:
     """
     Tests a specified list of plugins using a CI-aware split.
     """
+    config.python_version = python_version
 
     plugin_packages = get_plugin_packages()
     plugins_to_skip_list = (
