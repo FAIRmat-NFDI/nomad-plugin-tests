@@ -197,20 +197,10 @@ def output_package_logs(packages_to_test: list["PluginPackage"]):
     default=1,
     help="Index of the current CI node (1-based).",
 )
-@click.option("-p", "--python-version", envvar="PYTHON_VERSION", default="3.12")
-@click.pass_context
-def test_plugins(
-    ctx: click.Context,
-    plugins_to_skip: str,
-    ci_node_total: int,
-    ci_node_index: int,
-    python_version: str,
-) -> None:
+def test_plugins(plugins_to_skip: str, ci_node_total: int, ci_node_index: int) -> None:
     """
     Tests a specified list of plugins using a CI-aware split.
     """
-    ctx.ensure_object(dict)
-    ctx.obj["python_version"] = python_version
 
     plugin_packages = get_plugin_packages()
     plugins_to_skip_list = (

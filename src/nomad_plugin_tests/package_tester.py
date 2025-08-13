@@ -1,8 +1,7 @@
 import logging
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING
-
-import click
 
 from nomad_plugin_tests.config import TESTS_TO_RUN
 from nomad_plugin_tests.errors import PackageTestError
@@ -10,6 +9,8 @@ from nomad_plugin_tests.process import run_command
 
 if TYPE_CHECKING:
     from nomad_plugin_tests.parsing import PluginPackage
+
+PY_VER: str = Path(".python-version").read_text().strip()
 
 
 def create_virtual_environment(
@@ -21,13 +22,11 @@ def create_virtual_environment(
         venv_path: The path where the virtual environment should be created.
         package_logger: The logger to use for logging messages.
     """
-    ctx = click.get_current_context()
-
     venv_command = [
         "uv",
         "venv",
         "-p",
-        ctx.obj["python_version"],
+        PY_VER,
         "--seed",
         venv_path,
     ]
