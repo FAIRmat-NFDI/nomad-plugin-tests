@@ -14,9 +14,6 @@ TESTS_TO_RUN = {
 }
 
 
-@dataclass
+@dataclass(frozen=True)
 class Config:
-    python_version: str = "3.12"
-
-
-config = Config()
+    python_version: str

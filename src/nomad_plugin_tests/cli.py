@@ -15,7 +15,7 @@ from nomad_plugin_tests.package_tester import (
     run_pytest,
 )
 from nomad_plugin_tests.parsing import PluginPackage, get_plugin_packages
-from nomad_plugin_tests.config import config
+from nomad_plugin_tests.config import Config
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -53,7 +53,7 @@ def setup_logger(
     return logger, log_handler
 
 
-def clone_and_test_package(package: "PluginPackage") -> bool:
+def clone_and_test_package(package: "PluginPackage", config: Config) -> bool:
     package_name = package.name
     log_dir = f"logs/{package_name}"
     package_logger, log_handler = setup_logger(package_name, log_dir)
@@ -74,7 +74,7 @@ def clone_and_test_package(package: "PluginPackage") -> bool:
 
                 venv = os.path.join(temp_dir, "venv")
                 create_virtual_environment(
-                    venv_path=venv, package_logger=package_logger
+                    venv_path=venv, package_logger=package_logger, config=config
                 )
                 python_path = os.path.join(venv, "bin", "python")
 
@@ -143,13 +143,14 @@ def split_packages(
     return packages_to_test[start_index:end_index]
 
 
-def run_tests_parallel(packages_to_test: list["PluginPackage"]):
+def run_tests_parallel(packages_to_test: list["PluginPackage"], config: Config):
     passed_packages = []
     failed_packages = []
     os.makedirs("logs", exist_ok=True)
 
     with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
-        results = pool.map(clone_and_test_package, packages_to_test)
+        args = [(package, config) for package in packages_to_test]
+        results = pool.starmap(clone_and_test_package, args)
 
     for i, package in enumerate(packages_to_test):
         package_name = package.name
@@ -213,7 +214,7 @@ def test_plugins(
     """
     Tests a specified list of plugins using a CI-aware split.
     """
-    config.python_version = python_version
+    config = Config(python_version=python_version)
 
     plugin_packages = get_plugin_packages()
     plugins_to_skip_list = (
@@ -231,7 +232,7 @@ def test_plugins(
         print("No plugins found to test based on the provided names.")
         sys.exit(0)
 
-    passed_packages, failed_packages = run_tests_parallel(packages_to_test)
+    passed_packages, failed_packages = run_tests_parallel(packages_to_test, config)
 
     output_package_logs(packages_to_test)
 

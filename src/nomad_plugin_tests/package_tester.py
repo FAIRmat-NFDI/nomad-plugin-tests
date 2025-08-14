@@ -2,16 +2,17 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
-from nomad_plugin_tests.config import TESTS_TO_RUN, config
+from nomad_plugin_tests.config import TESTS_TO_RUN
 from nomad_plugin_tests.errors import PackageTestError
 from nomad_plugin_tests.process import run_command
 
 if TYPE_CHECKING:
     from nomad_plugin_tests.parsing import PluginPackage
+    from nomad_plugin_tests.config import Config
 
 
 def create_virtual_environment(
-    *, venv_path: str, package_logger: logging.Logger
+    *, venv_path: str, package_logger: logging.Logger, config: 'Config'
 ) -> None:
     """Creates a virtual environment using `uv`.
 
