@@ -8,10 +8,11 @@ from nomad_plugin_tests.process import run_command
 
 if TYPE_CHECKING:
     from nomad_plugin_tests.parsing import PluginPackage
+    from nomad_plugin_tests.config import Config
 
 
 def create_virtual_environment(
-    *, venv_path: str, package_logger: logging.Logger
+    *, venv_path: str, package_logger: logging.Logger, config: 'Config'
 ) -> None:
     """Creates a virtual environment using `uv`.
 
@@ -23,7 +24,7 @@ def create_virtual_environment(
         "uv",
         "venv",
         "-p",
-        "3.12",
+        config.python_version,
         "--seed",
         venv_path,
     ]

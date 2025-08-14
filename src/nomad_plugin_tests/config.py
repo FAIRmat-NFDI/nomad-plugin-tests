@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+
+
 TESTS_TO_RUN = {
     "pynxtools": "tests/nomad",
     "pynxtools_apm": "tests/test_nomad_examples.py",
@@ -9,3 +12,8 @@ TESTS_TO_RUN = {
     "pynxtools_xps": "tests/test_nomad_examples.py",
     "electronicparsers": "tests",
 }
+
+
+@dataclass(frozen=True)
+class Config:
+    python_version: str

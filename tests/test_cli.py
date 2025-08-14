@@ -1,6 +1,7 @@
+import pytest
+
 from nomad_plugin_tests.cli import split_packages
 from nomad_plugin_tests.parsing import PluginPackage
-import pytest
 
 
 @pytest.mark.parametrize(
