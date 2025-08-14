@@ -1,6 +1,6 @@
 [project]
 name = "nomad-plugin-tests"
-version = "0.2.2"
+version = "0.2.3"
 description = "Run NOMAD plugin tests"
 readme = "README.md"
 authors = [{ name = "Ahmed Ilyas", email = "ahmed.n.ilyas@gmail.com" }]
