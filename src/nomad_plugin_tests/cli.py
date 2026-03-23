@@ -1,3 +1,4 @@
+import json
 import logging
 import multiprocessing
 import os
@@ -15,7 +16,7 @@ from nomad_plugin_tests.package_tester import (
     run_pytest,
 )
 from nomad_plugin_tests.parsing import PluginPackage, get_plugin_packages
-from nomad_plugin_tests.config import Config
+from nomad_plugin_tests.config import Config, TESTS_TO_RUN
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -92,6 +93,7 @@ def clone_and_test_package(package: "PluginPackage", config: Config) -> bool:
                     package=package,
                     python_path=python_path,
                     package_logger=package_logger,
+                    config=config,
                 )
                 package_logger.info(f"Tests passed for '{package_name}'.")
                 return True
@@ -205,16 +207,26 @@ def output_package_logs(packages_to_test: list["PluginPackage"]):
     envvar="PYTHON_VERSION",
     default="3.12",
 )
+@click.option(
+    "--tests-to-run-override",
+    envvar="PLUGIN_TESTS_TESTS_TO_RUN_OVERRIDE",
+    default=None,
+    help='JSON dict overriding/extending TESTS_TO_RUN, e.g. \'{"pkg": "tests/nomad"}\'.',
+)
 def test_plugins(
     plugins_to_skip: str,
     ci_node_total: int,
     ci_node_index: int,
     python_version: str,
+    tests_to_run_override: str | None,
 ) -> None:
     """
     Tests a specified list of plugins using a CI-aware split.
     """
-    config = Config(python_version=python_version)
+    plugin_tests = dict(TESTS_TO_RUN)
+    if tests_to_run_override:
+        plugin_tests.update(json.loads(tests_to_run_override))
+    config = Config(python_version=python_version, plugin_tests=plugin_tests)
 
     plugin_packages = get_plugin_packages()
     plugins_to_skip_list = (

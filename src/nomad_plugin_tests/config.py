@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 TESTS_TO_RUN = {
@@ -17,3 +17,4 @@ TESTS_TO_RUN = {
 @dataclass(frozen=True)
 class Config:
     python_version: str
+    plugin_tests: dict[str, str] = field(default_factory=lambda: dict(TESTS_TO_RUN))
