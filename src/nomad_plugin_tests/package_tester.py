@@ -110,11 +110,15 @@ def run_pytest(
     """
     pytest_command = [python_path, "-m", "pytest", "-p", "no:warnings"]
 
-    if plugin_tests := config.plugin_tests.get(package.name):
-        test_path = os.path.join(temp_dir, plugin_tests)
-        if not os.path.exists(test_path):
+    if candidates := config.plugin_tests.get(package.name):
+        paths = [candidates] if isinstance(candidates, str) else candidates
+        test_path = next(
+            (os.path.join(temp_dir, p) for p in paths if os.path.exists(os.path.join(temp_dir, p))),
+            None,
+        )
+        if test_path is None:
             raise PackageTestError(
-                f"Test path '{test_path}' configured for '{package.name}' does not exist."
+                f"None of the configured test paths for '{package.name}' exist: {paths}"
             )
         pytest_command.append(test_path)
     else:
