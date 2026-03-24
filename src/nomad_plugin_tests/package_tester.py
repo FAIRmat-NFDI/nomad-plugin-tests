@@ -2,7 +2,6 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
-from nomad_plugin_tests.config import TESTS_TO_RUN
 from nomad_plugin_tests.errors import PackageTestError
 from nomad_plugin_tests.process import run_command
 
@@ -98,6 +97,7 @@ def run_pytest(
     package: "PluginPackage",
     python_path: str,
     package_logger: logging.Logger,
+    config: "Config",
 ) -> None:
     """Runs pytest to execute tests within the package.
 
@@ -106,13 +106,26 @@ def run_pytest(
         package: The PluginPackage object.
         python_path: The path to the Python executable within the virtual environment.
         package_logger: The logger to use for logging messages.
+        config: The Config object.
     """
     pytest_command = [python_path, "-m", "pytest", "-p", "no:warnings"]
 
-    if test_folder := TESTS_TO_RUN.get(package.name):
-        pytest_command.append(os.path.join(temp_dir, test_folder))
+    if candidates := config.plugin_tests.get(package.name):
+        paths = [candidates] if isinstance(candidates, str) else candidates
+        test_path = next(
+            (os.path.join(temp_dir, p) for p in paths if os.path.exists(os.path.join(temp_dir, p))),
+            None,
+        )
+        if test_path is None:
+            raise PackageTestError(
+                f"None of the configured test paths for '{package.name}' exist: {paths}"
+            )
+        pytest_command.append(test_path)
     else:
         pytest_command.append(temp_dir)
 
-    if not run_command(pytest_command, cwd=temp_dir, package_logger=package_logger):
+    result = run_command(pytest_command, cwd=temp_dir, package_logger=package_logger)
+    if result and result.returncode == 5:
+        package_logger.info(f"No tests found for '{package.name}'.")
+    elif not result:
         raise PackageTestError(f"Tests failed: {' '.join(pytest_command)}")

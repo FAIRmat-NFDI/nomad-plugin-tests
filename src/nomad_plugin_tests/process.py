@@ -12,8 +12,10 @@ def run_command(command, cwd=None, package_logger=None):
 
         if result.stdout:
             command_logger.info(result.stdout)
-        if result is None or result.returncode != 0 or result.returncode == 5:
-            # return code 5 is pytest exit code for no tests
+        if result is None or result.returncode != 0:
+            if result.returncode == 5:
+                # return code 5 is pytest exit code for no tests collected — not a failure
+                return result
             command_logger.error(
                 f"Command '{' '.join(command)}' failed. Return code: {result.returncode if result else 'None'}, "
                 f"stdout: {result.stdout if result else 'None'}, stderr: {result.stderr if result else 'None'}"
