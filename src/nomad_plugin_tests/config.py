@@ -11,6 +11,7 @@ TESTS_TO_RUN: dict[str, str | list[str]] = {
     "pynxtools_spm": ["tests/nomad", "tests/test_nomad_examples.py"],
     "pynxtools_xps": ["tests/nomad", "tests/test_nomad_examples.py"],
     "electronicparsers": "tests",
+    "nomad_gui": "infra/tests",
 }
 
 
