@@ -61,28 +61,39 @@ def install_distro_dependencies(
 
 
 def install_package_dependencies(
-    *, temp_dir: str, python_path: str, package_logger: logging.Logger
+    *,
+    temp_dir: str,
+    package_name: str,
+    python_path: str,
+    package_logger: logging.Logger,
 ) -> None:
     """Installs development dependencies from pyproject.toml.
 
     Args:
         temp_dir: The temporary directory where the package source code is located.
+        package_name: The plugin package's Python module name.
         python_path: The path to the Python executable within the virtual environment.
         package_logger: The logger to use for logging messages.
     """
     requirements_file = os.path.join(os.getcwd(), "requirements.txt")
+    pyproject = os.path.join(
+        temp_dir,
+        "infra/pyproject.toml" if package_name == "nomad_gui" else "pyproject.toml",
+    )
     install_command = [
         "uv",
         "pip",
         "install",
         "-r",
-        f"{temp_dir}/pyproject.toml",
+        pyproject,
         "--all-extras",
         "-p",
         python_path,
         "-c",
         requirements_file,
     ]
+    if package_name == "nomad_gui":
+        install_command.extend(["--group", f"{pyproject}:test", "pytest"])
 
     if not run_command(install_command, cwd=temp_dir, package_logger=package_logger):
         raise PackageTestError(
