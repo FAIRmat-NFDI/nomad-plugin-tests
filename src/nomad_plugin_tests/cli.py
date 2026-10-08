@@ -84,6 +84,7 @@ def clone_and_test_package(package: "PluginPackage", config: Config) -> bool:
                 )
                 install_package_dependencies(
                     temp_dir=temp_dir,
+                    package_name=package.name,
                     python_path=python_path,
                     package_logger=package_logger,
                 )
