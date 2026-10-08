@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from nomad_plugin_tests.process import run_command
 
@@ -6,25 +7,38 @@ if TYPE_CHECKING:
     from nomad_plugin_tests.parsing import PluginPackage
 
 
+SUPPORTED_GIT_HOSTS = {"github.com", "gitlab.com", "gitlab.mpcdf.mpg.de"}
+
+
+def is_valid_git_url(url: str | None) -> bool:
+    """Check whether a URL points to a supported Git hosting service."""
+    if not url:
+        return False
+
+    if url.startswith("git@"):
+        hostname = url.removeprefix("git@").split(":", 1)[0]
+    else:
+        hostname = urlparse(url).hostname
+
+    return hostname in SUPPORTED_GIT_HOSTS
+
+
 def is_valid_github_url(url: str | None) -> bool:
-    """
-    Checks if a given URL is a valid GitHub URL. Specifically, validates that
-    it's not None and that it contains "github.com".
-    """
-    return url is not None and "github.com" in url
+    """Backward-compatible alias for :func:`is_valid_git_url`."""
+    return is_valid_git_url(url)
 
 
 def get_git_url(package: "PluginPackage") -> str | None:
     """
-    Prioritizes and constructs a GitHub URL from various package sources,
-    ensuring it ends with ".git" for compatibility.
+    Prioritizes and constructs a Git URL from various package sources,
+    ensuring direct dependency URLs end with ".git" for compatibility.
 
     Args:
         package: A dictionary (or similar structure) containing potential GitHub URL sources
                  (homepage, repository, github_url).
 
     Returns:
-        A string containing the validated GitHub URL if found; otherwise, None.
+        A string containing the validated Git URL if found; otherwise, None.
         Returns None if all inputs are None or invalid.
     """
 
@@ -35,14 +49,14 @@ def get_git_url(package: "PluginPackage") -> str | None:
         github_url = package.github_url
         if not github_url.endswith(".git"):
             github_url = f"{github_url}.git"
-        if not is_valid_github_url(github_url):
+        if not is_valid_git_url(github_url):
             github_url = None
 
     # Then repository
     if (
         github_url is None
         and package.repository
-        and is_valid_github_url(package.repository)
+        and is_valid_git_url(package.repository)
     ):
         github_url = package.repository
 
@@ -50,7 +64,7 @@ def get_git_url(package: "PluginPackage") -> str | None:
     if (
         github_url is None
         and package.homepage
-        and is_valid_github_url(package.homepage)
+        and is_valid_git_url(package.homepage)
     ):
         github_url = package.homepage
 
