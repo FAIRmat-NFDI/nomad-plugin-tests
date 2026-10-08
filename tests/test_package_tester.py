@@ -35,5 +35,5 @@ def test_install_package_dependencies_uses_expected_pyproject(
     expected_pyproject = os.path.join(str(tmp_path), pyproject_path)
     assert call["command"][4] == expected_pyproject
     assert (f"{expected_pyproject}:test" in call["command"]) is has_test_group
-    assert ("pytest" in call["command"]) is has_test_group
+    assert "pytest" in call["command"]
     assert call["kwargs"]["cwd"] == str(tmp_path)

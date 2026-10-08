@@ -87,13 +87,14 @@ def install_package_dependencies(
         "-r",
         pyproject,
         "--all-extras",
+        "pytest",
         "-p",
         python_path,
         "-c",
         requirements_file,
     ]
     if package_name == "nomad_gui":
-        install_command.extend(["--group", f"{pyproject}:test", "pytest"])
+        install_command.extend(["--group", f"{pyproject}:test"])
 
     if not run_command(install_command, cwd=temp_dir, package_logger=package_logger):
         raise PackageTestError(
