@@ -1,7 +1,31 @@
 from unittest.mock import MagicMock
 
-from nomad_plugin_tests.git import checkout_tag, clone_and_checkout
+from nomad_plugin_tests.git import (
+    checkout_tag,
+    clone_and_checkout,
+    get_git_url,
+    is_valid_git_url,
+)
 from nomad_plugin_tests.parsing import PluginPackage
+
+
+def test_supported_git_urls():
+    assert is_valid_git_url("https://github.com/test/repo.git")
+    assert is_valid_git_url("https://gitlab.com/test/repo.git")
+    assert is_valid_git_url("https://gitlab.mpcdf.mpg.de/nomad-lab/nomad-gui.git")
+    assert is_valid_git_url("git@gitlab.mpcdf.mpg.de:nomad-lab/nomad-gui.git")
+
+
+def test_unsupported_git_url():
+    assert not is_valid_git_url("https://example.com/github.com/test/repo.git")
+    assert not is_valid_git_url(None)
+
+
+def test_get_gitlab_repository_url():
+    repository = "https://gitlab.mpcdf.mpg.de/nomad-lab/nomad-gui.git"
+    package = PluginPackage(name="nomad_gui", repository=repository)
+
+    assert get_git_url(package) == repository
 
 
 def test_clone_and_checkout_success_commit_hash(monkeypatch):
